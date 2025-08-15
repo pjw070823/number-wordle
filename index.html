@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 
@@ -159,6 +160,7 @@
         #keyboard {
             user-select: none;
             margin-top: 25px;
+            width: 100%;
         }
 
         .key-row {
@@ -195,6 +197,7 @@
             padding: 0 12px;
         }
 
+        /* 키보드 색상 변경 스타일은 유지하되, JS에서 클래스를 추가하지 않음 */
         .key.green {
             background-color: var(--color-correct);
             color: white;
@@ -306,6 +309,59 @@
             background-color: var(--color-correct);
             color: white;
             margin-top: 20px;
+        }
+        
+        /* ======================================= */
+        /* === 모바일 화면 대응을 위한 미디어 쿼리 === */
+        /* ======================================= */
+        @media (max-width: 420px) {
+            :root {
+                /* 화면 너비에 따라 크기가 변하도록 vw 단위 사용 */
+                --box-size: 16vw; 
+                --gap-size: 1.5vw;
+            }
+
+            body {
+                padding: 5px; /* 화면 전체의 여백 축소 */
+            }
+
+            .box {
+                font-size: 8vw; /* 칸 안의 글자 크기도 조절 */
+            }
+
+            .sum-display {
+                width: auto; /* 합계 표시 영역 너비 자동 조절 */
+                min-width: 50px;
+                font-size: 3.5vw;
+            }
+
+            .attempt-container {
+                gap: 2vw; /* 칸과 합계 표시 영역 사이 간격 조절 */
+            }
+            
+            #keyboard {
+                margin-top: 15px;
+            }
+
+            .key-row {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+
+            .key {
+                height: 50px;
+                margin: 0 1%; /* 키 사이의 간격을 비율로 조절 */
+                padding: 0;
+                flex-grow: 1; /* 키들이 남는 공간을 채우도록 함 */
+                font-size: 0.9em;
+                /* 고정 너비 제거 */
+                width: auto;
+                min-width: auto;
+            }
+            
+            .key.special-key {
+                flex-grow: 2; /* ENTER, DELETE 키가 좀 더 넓도록 설정 */
+            }
         }
     </style>
 </head>
@@ -573,6 +629,7 @@
                     sumOfDifferences += Math.abs(guessDigit - answerDigit);
                 }
 
+                // 키보드 색상 업데이트 함수 호출은 유지하되, 함수 내부 로직을 비워 색상 변경 방지
                 updateKeyboardColors(guess);
 
                 const sumDisplay = document.getElementById(`sum-${rowIndex}`);
@@ -580,7 +637,12 @@
                 sumDisplay.classList.add('visible');
             }
 
+            // ===========================================
+            // === 키보드 색상 변경 기능 제거를 위한 수정 ===
+            // ===========================================
             function updateKeyboardColors(guess) {
+                // 이 함수의 내용을 비워서 키보드 색상이 변경되지 않도록 합니다.
+                /*
                 for (let i = 0; i < guess.length; i++) {
                     const digit = guess[i];
                     const key = keyboard.querySelector(`[data-key="${digit}"]`);
@@ -590,6 +652,7 @@
                         key.classList.add('wrong');
                     }
                 }
+                */
             }
 
             // --- 3 & 5. 게임 종료 팝업 및 통계 표시 ---
