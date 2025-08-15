@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>숫자 워들 (Number Wordle)</title>
+    <style>
+        /* CSS 스타일 */
+        :root {
+            --box-size: 60px;
+            --gap-size: 5px;
+
+            /* Light Mode Colors */
+            --color-correct: #6aaa64;
+            --color-wrong: #787c7e;
+            --color-default-key: #d3d6da;
+            --color-key-text: #000000;
+            --color-background: #f7f8fa;
+            --color-text: #333;
+            --color-border: #d3d6da;
+            --color-filled-border: #999;
+            --color-modal-bg: #ffffff;
+        }
+
+        body.dark-mode {
+            /* Dark Mode Colors */
+            --color-correct: #538d4e;
+            --color-wrong: #3a3a3c;
+            --color-default-key: #818384;
+            --color-key-text: #ffffff;
+            --color-background: #121213;
+            --color-text: #ffffff;
+            --color-border: #3a3a3c;
+            --color-filled-border: #565758;
+            --color-modal-bg: #1e1e1f;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            /* 상단, 중앙, 하단 간격 조절 */
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        #game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        h1 {
+            color: var(--color-text);
+            text-align: center;
+            margin: 0;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #theme-toggle {
+            font-size: 1.5em;
+            cursor: pointer;
+            background: none;
+            border: none;
+            margin-left: auto;
+            /* 오른쪽 정렬 */
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-rows: repeat(6, 1fr);
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .attempt-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, var(--box-size));
+            gap: var(--gap-size);
+        }
+
+        .box {
+            width: var(--box-size);
+            height: var(--box-size);
+            border: 2px solid var(--color-border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--color-text);
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .box.filled {
+            border-color: var(--color-filled-border);
+            transform: scale(1.05);
+        }
+
+        .box.green {
+            background-color: var(--color-correct);
+            color: white;
+            border-color: var(--color-correct);
+        }
+
+        .box.wrong {
+            background-color: var(--color-wrong);
+            color: white;
+            border-color: var(--color-wrong);
+        }
+
+        .sum-display {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #888;
+            width: 100px;
+            text-align: center;
+            visibility: hidden;
+        }
+
+        .sum-display.visible {
+            visibility: visible;
+        }
+
+        /* 메시지 공간 제거됨 */
+
+        /* --- 가상 키보드 스타일 --- */
+        #keyboard {
+            user-select: none;
+            margin-top: 25px;
+        }
+
+        .key-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .key {
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1em;
+            padding: 0;
+            margin: 0 3px;
+            height: 58px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            background-color: var(--color-default-key);
+            color: var(--color-key-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .key.number-key {
+            width: 43px;
+        }
+
+        .key.special-key {
+            min-width: 65px;
+            padding: 0 12px;
+        }
+
+        .key.green {
+            background-color: var(--color-correct);
+            color: white;
+        }
+
+        .key.wrong {
+            background-color: var(--color-wrong);
+            color: white;
+        }
+
+        /* --- 팝업 (모달) 스타일 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            /* 초기에는 숨김 */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: var(--color-modal-bg);
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 480px;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+        }
+
+        #answer-display {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        #stats-container h3 {
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+        }
+
+        .guess-dist-container h4 {
+            margin-bottom: 10px;
+        }
+
+        .dist-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .dist-label {
+            width: 20px;
+        }
+
+        .dist-bar-wrapper {
+            flex-grow: 1;
+            background-color: #555;
+            border-radius: 3px;
+        }
+
+        .dist-bar {
+            height: 20px;
+            background-color: var(--color-correct);
+            border-radius: 3px;
+            text-align: right;
+            padding-right: 5px;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        #share-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            border: none;
+            background-color: var(--color-correct);
+            color: white;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-wrapper">
+        <header>
+            <h1>숫자 워들</h1>
+            <button id="theme-toggle">🌙</button>
+        </header>
+        <div id="game-board"></div>
+        <div id="keyboard">
+            <!-- 키보드 HTML (변경 없음) -->
+            <div class="key-row">
+                <button class="key number-key" data-key="1">1</button> <button class="key number-key"
+                    data-key="2">2</button> <button class="key number-key" data-key="3">3</button> <button
+                    class="key number-key" data-key="4">4</button> <button class="key number-key"
+                    data-key="5">5</button> <button class="key number-key" data-key="6">6</button> <button
+                    class="key number-key" data-key="7">7</button> <button class="key number-key"
+                    data-key="8">8</button> <button class="key number-key" data-key="9">9</button> <button
+                    class="key number-key" data-key="0">0</button>
+            </div>
+            <div class="key-row">
+                <button class="key special-key" data-key="ENTER">ENTER</button>
+                <button class="key special-key" data-key="DELETE">⌫</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 결과 팝업 (모달) -->
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal-content">
+            <h2 id="result-title">결과</h2>
+            <div id="answer-display"></div>
+            <div id="stats-container">
+                <h3>통계</h3>
+                <div class="stats-grid">
+                    <div class="stat-item"><span class="stat-value" id="total-plays">0</span><span class="stat-label">도전
+                            횟수</span></div>
+                    <div class="stat-item"><span class="stat-value" id="win-percentage">0</span><span
+                            class="stat-label">성공률 (%)</span></div>
+                    <div class="stat-item"><span class="stat-value" id="current-streak">0</span><span
+                            class="stat-label">현재 연승</span></div>
+                    <div class="stat-item"><span class="stat-value" id="max-streak">0</span><span class="stat-label">최대
+                            연승</span></div>
+                </div>
+                <h4>시도 분포</h4>
+                <div class="guess-dist-container">
+                    <!-- JS로 동적 생성 -->
+                </div>
+            </div>
+            <button id="share-button">결과 복사하기</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 6. 날짜 기반 정답 생성 ---
+            function getTodayDateString() {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function generateAnswerForDate(dateString) {
+                const seed = parseInt(dateString.replace(/-/g, ''), 10);
+                let rand = Math.sin(seed) * 10000;
+                rand = rand - Math.floor(rand);
+                return String(Math.floor(10000 + rand * 90000));
+            }
+
+            const today = getTodayDateString();
+            const answer = generateAnswerForDate(today);
+            console.log(`오늘(${today})의 정답:`, answer);
+
+            const MAX_ATTEMPTS = 6;
+            let currentRowIndex = 0;
+            let currentBoxIndex = 0;
+            let isGameOver = false;
+            let guesses = Array(MAX_ATTEMPTS).fill('');
+
+            const gameBoard = document.getElementById('game-board');
+            const keyboard = document.getElementById('keyboard');
+            const resultModal = document.getElementById('result-modal');
+            const shareButton = document.getElementById('share-button');
+            const themeToggle = document.getElementById('theme-toggle');
+
+            // --- 1. 다크 모드 기능 ---
+            function setupDarkMode() {
+                const isDarkMode = localStorage.getItem('darkMode') === 'true';
+                if (isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                    themeToggle.textContent = '☀️';
+                }
+                themeToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('dark-mode');
+                    const isNowDark = document.body.classList.contains('dark-mode');
+                    localStorage.setItem('darkMode', isNowDark);
+                    themeToggle.textContent = isNowDark ? '☀️' : '🌙';
+                });
+            }
+
+            // --- 4 & 5. 게임 상태 및 통계 저장/불러오기 ---
+            let stats = {
+                totalPlays: 0,
+                wins: 0,
+                currentStreak: 0,
+                maxStreak: 0,
+                guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+                lastPlayedDate: null,
+            };
+
+            function saveGameState() {
+                const gameState = {
+                    date: today,
+                    guesses: guesses,
+                    currentRowIndex: currentRowIndex,
+                    isGameOver: isGameOver
+                };
+                localStorage.setItem('numberWordleState', JSON.stringify(gameState));
+            }
+
+            function loadGameState() {
+                const savedState = JSON.parse(localStorage.getItem('numberWordleState'));
+                if (savedState && savedState.date === today) {
+                    guesses = savedState.guesses;
+                    currentRowIndex = savedState.currentRowIndex;
+                    isGameOver = savedState.isGameOver;
+
+                    guesses.forEach((guess, rIndex) => {
+                        if (guess) {
+                            for (let cIndex = 0; cIndex < guess.length; cIndex++) {
+                                const box = gameBoard.children[rIndex].querySelector('.row').children[cIndex];
+                                box.textContent = guess[cIndex];
+                                box.classList.add('filled');
+                            }
+                            checkGuess(guess, rIndex, true); // silent check to restore colors
+                        }
+                    });
+
+                    if (isGameOver) {
+                        showEndGamePopup();
+                    }
+                }
+            }
+
+            function saveStats() {
+                localStorage.setItem('numberWordleStats', JSON.stringify(stats));
+            }
+
+            function loadStats() {
+                const savedStats = JSON.parse(localStorage.getItem('numberWordleStats'));
+                if (savedStats) {
+                    stats = savedStats;
+                }
+            }
+
+            // 게임 보드 생성
+            for (let i = 0; i < MAX_ATTEMPTS; i++) {
+                const attemptContainer = document.createElement('div');
+                attemptContainer.classList.add('attempt-container');
+                const row = document.createElement('div');
+                row.classList.add('row');
+                for (let j = 0; j < 5; j++) {
+                    row.appendChild(document.createElement('div')).classList.add('box');
+                }
+                const sumDisplay = document.createElement('div');
+                sumDisplay.classList.add('sum-display');
+                sumDisplay.id = `sum-${i}`;
+                attemptContainer.appendChild(row);
+                attemptContainer.appendChild(sumDisplay);
+                gameBoard.appendChild(attemptContainer);
+            }
+
+            // --- 2. 메시지 공간 제거 및 임시 메시지 함수 ---
+            function showMessage(message, duration = 2000) {
+                const messageElement = document.createElement('div');
+                messageElement.textContent = message;
+                messageElement.style.cssText = `
+                    position: fixed;
+                    top: 15%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background-color: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 2000;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                `;
+                document.body.appendChild(messageElement);
+                setTimeout(() => messageElement.style.opacity = 1, 10);
+                setTimeout(() => {
+                    messageElement.style.opacity = 0;
+                    setTimeout(() => messageElement.remove(), 300);
+                }, duration);
+            }
+
+            function handleNumberClick(number) {
+                if (isGameOver || currentBoxIndex >= 5) return;
+                const box = gameBoard.children[currentRowIndex].querySelector('.row').children[currentBoxIndex];
+                box.textContent = number;
+                box.classList.add('filled');
+                currentBoxIndex++;
+            }
+
+            function handleDeleteClick() {
+                if (isGameOver || currentBoxIndex <= 0) return;
+                currentBoxIndex--;
+                const box = gameBoard.children[currentRowIndex].querySelector('.row').children[currentBoxIndex];
+                box.textContent = '';
+                box.classList.remove('filled');
+            }
+
+            function handleSubmit() {
+                if (isGameOver) return;
+                if (currentBoxIndex < 5) {
+                    showMessage('5자리 숫자를 모두 입력해야 합니다.');
+                    return;
+                }
+
+                const currentRowElement = gameBoard.children[currentRowIndex].querySelector('.row');
+                const guess = Array.from(currentRowElement.children).map(box => box.textContent).join('');
+                guesses[currentRowIndex] = guess;
+
+                checkGuess(guess, currentRowIndex, false);
+
+                if (guess === answer) {
+                    isGameOver = true;
+                    setTimeout(() => {
+                        updateStats(true);
+                        showEndGamePopup();
+                    }, 500);
+                } else {
+                    currentRowIndex++;
+                    currentBoxIndex = 0;
+                    if (currentRowIndex >= MAX_ATTEMPTS) {
+                        isGameOver = true;
+                        setTimeout(() => {
+                            updateStats(false);
+                            showEndGamePopup();
+                        }, 500);
+                    }
+                }
+                saveGameState();
+            }
+
+            function checkGuess(guess, rowIndex, isSilent) {
+                const rowElement = gameBoard.children[rowIndex].querySelector('.row');
+                const boxes = rowElement.children;
+                let sumOfDifferences = 0;
+
+                for (let i = 0; i < 5; i++) {
+                    const guessDigit = parseInt(guess[i]);
+                    const answerDigit = parseInt(answer[i]);
+                    if (guessDigit === answerDigit) {
+                        boxes[i].classList.add('green');
+                    } else {
+                        boxes[i].classList.add('wrong');
+                    }
+                    sumOfDifferences += Math.abs(guessDigit - answerDigit);
+                }
+
+                updateKeyboardColors(guess);
+
+                const sumDisplay = document.getElementById(`sum-${rowIndex}`);
+                sumDisplay.textContent = `합: ${sumOfDifferences}`;
+                sumDisplay.classList.add('visible');
+            }
+
+            function updateKeyboardColors(guess) {
+                for (let i = 0; i < guess.length; i++) {
+                    const digit = guess[i];
+                    const key = keyboard.querySelector(`[data-key="${digit}"]`);
+                    if (answer[i] === digit) {
+                        key.classList.add('green');
+                    } else if (!key.classList.contains('green')) {
+                        key.classList.add('wrong');
+                    }
+                }
+            }
+
+            // --- 3 & 5. 게임 종료 팝업 및 통계 표시 ---
+            function updateStats(didWin) {
+                // 오늘 플레이한 기록이 없으면 통계 업데이트
+                if (stats.lastPlayedDate !== today) {
+                    stats.totalPlays++;
+                    if (didWin) {
+                        stats.wins++;
+                        stats.currentStreak++;
+                        stats.maxStreak = Math.max(stats.maxStreak, stats.currentStreak);
+                        stats.guessDistribution[currentRowIndex + 1]++;
+                    } else {
+                        stats.currentStreak = 0;
+                    }
+                    stats.lastPlayedDate = today;
+                    saveStats();
+                }
+            }
+
+            function showEndGamePopup() {
+                const didWin = guesses[currentRowIndex] === answer;
+
+                document.getElementById('result-title').textContent = didWin ? '성공!' : '실패';
+                const answerDisplay = document.getElementById('answer-display');
+                if (!didWin) {
+                    answerDisplay.textContent = `정답: ${answer}`;
+                } else {
+                    answerDisplay.textContent = '';
+                }
+
+                // 통계 업데이트
+                document.getElementById('total-plays').textContent = stats.totalPlays;
+                const winPercentage = stats.totalPlays > 0 ? Math.round((stats.wins / stats.totalPlays) * 100) : 0;
+                document.getElementById('win-percentage').textContent = winPercentage;
+                document.getElementById('current-streak').textContent = stats.currentStreak;
+                document.getElementById('max-streak').textContent = stats.maxStreak;
+
+                // 시도 분포 그래프
+                const distContainer = document.querySelector('.guess-dist-container');
+                distContainer.innerHTML = '';
+                const maxDist = Math.max(...Object.values(stats.guessDistribution));
+                for (let i = 1; i <= 6; i++) {
+                    const count = stats.guessDistribution[i] || 0;
+                    const percentage = maxDist > 0 ? (count / maxDist) * 100 : 0;
+                    const distRow = document.createElement('div');
+                    distRow.classList.add('dist-row');
+                    distRow.innerHTML = `
+                        <div class="dist-label">${i}</div>
+                        <div class="dist-bar-wrapper">
+                            <div class="dist-bar" style="width: ${percentage}%;">${count}</div>
+                        </div>
+                    `;
+                    distContainer.appendChild(distRow);
+                }
+
+                resultModal.style.display = 'flex';
+            }
+
+            function generateShareText() {
+                const didWin = guesses[currentRowIndex] === answer;
+                let text = `숫자 워들 ${today} ${didWin ? currentRowIndex + 1 : 'X'}/6\n\n`;
+                for (let i = 0; i <= currentRowIndex; i++) {
+                    if (guesses[i]) {
+                        for (let j = 0; j < 5; j++) {
+                            if (guesses[i][j] === answer[j]) {
+                                text += '🟩';
+                            } else {
+                                text += '⬛';
+                            }
+                        }
+                        text += '\n';
+                    }
+                }
+                return text;
+            }
+
+            shareButton.addEventListener('click', () => {
+                const textToCopy = generateShareText();
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    shareButton.textContent = '복사 완료!';
+                    setTimeout(() => { shareButton.textContent = '결과 복사하기'; }, 2000);
+                }).catch(err => {
+                    console.error('복사 실패:', err);
+                    showMessage('결과 복사에 실패했습니다.');
+                });
+            });
+
+            resultModal.addEventListener('click', (event) => {
+                if (event.target === resultModal) {
+                    resultModal.style.display = 'none';
+                }
+            });
+
+            // 이벤트 리스너
+            keyboard.addEventListener('click', (event) => {
+                const target = event.target;
+                if (!target.matches('button.key')) return;
+                const key = target.dataset.key;
+                if (key === 'ENTER') handleSubmit();
+                else if (key === 'DELETE') handleDeleteClick();
+                else handleNumberClick(key);
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (isGameOver) return;
+                if (event.key === 'Enter') handleSubmit();
+                else if (event.key === 'Backspace') handleDeleteClick();
+                else if (!isNaN(parseInt(event.key)) && event.key.length === 1) handleNumberClick(event.key);
+            });
+
+            // 초기화 함수 호출
+            setupDarkMode();
+            loadStats();
+            loadGameState();
+        });
+    </script>
+</body>
+
+</html>
